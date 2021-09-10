@@ -29,15 +29,17 @@
 /* USER CODE BEGIN Includes */
 
 #include "usbd_cdc_if.h"
+#include "string.h"
+#include "stdio.h"
 
 extern uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 #define DATA_SIZE  38554                     /*  sample_t secund = 1/96000000/4/(122 + 12.5)  DATA_SIZE = 0.2 secund /sample_t   */
 
-#define DEFAULT_CHAUNKS 4                    /*  total time 0.2 * 4 = 0.8   */
+#define DEFAULT_CHAUNKS 10                    /*  total time 0.2 * 4 = 0.8   */
 #define DEFAULT_DISCARGED_CHAUNKS 1           /*                 */
-#define DEFAULT_REQUESTS_TIME_MS 1000         
+#define DEFAULT_REQUESTS_TIME_MS 300         
 #define DEFAULT_COUNT_DISCHARGED_PULSES 30
 
 
@@ -47,10 +49,11 @@ volatile uint16_t adc_value[DATA_SIZE];
 uint16_t count = 0;
 volatile uint16_t count_pulses = 0;
 
-volatile uint8_t MAX_CHANKS = 4;
 volatile uint8_t current_chank = 0;
 volatile uint8_t isChaunksFull = 0;
 
+
+uint8_t tmp_buff[200];
 
 uint8_t flag = 0;
 unsigned long T;
@@ -123,9 +126,58 @@ void response_copy(){
 
 
 void send_message_virtual_com(int current){
-  sprintf((char*)UserTxBufferFS, "count pulses detected: %u\r\n", current);
-  CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
+  
+  for (int i = 0; i < APP_RX_DATA_SIZE; i++){
+    UserTxBufferFS[i] = 0;
+  }
+
+  // sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", tmp);
+  printf("sasa"); 
+  sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", current);
+
+  CDC_Transmit_FS(UserTxBufferFS, sizeof(tmp_buff)/sizeof tmp_buff[0]);
   ready_response.flag_requests = TRUE;
+}
+
+
+void laser_off(){
+  HAL_GPIO_WritePin(GPIOC, LED_Pin, GPIO_PIN_SET);
+
+}
+
+
+void laser_on(){
+  HAL_GPIO_WritePin(GPIOC, LED_Pin, GPIO_PIN_RESET);
+}
+
+
+int get_signal_analysis(void){
+  int count = 0;
+  int count_pulses = 0;
+  for (int i = 0; i < DATA_SIZE; i++){
+    if (adc_value[i] > 4000){
+      count++;
+    }else{
+      if (count > 0){
+        count_pulses++;
+      }
+      count = 0;
+    }
+  }
+  return count_pulses;
+}
+
+
+void discharge_mode(){
+  if (current_chank == conf.count_discharged_chanks){
+    int count = conf.count_discarge_pulses * conf.count_discharged_chanks;
+    if (current_response.count_pulses >= count){
+      laser_on();
+    }
+    else{
+      laser_off();
+    }
+  }
 }
 
 
@@ -133,31 +185,20 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
   if (hadc->Instance == ADC1){
     HAL_ADC_Stop_DMA(&hadc1);
     current_chank++;
-    
-    int count = 0;
-    for (int i = 0; i < DATA_SIZE; i++){
-      if (adc_value[i] > 2000){
-        count++;
-      }else{
-        if (count > 0){
-          // sprintf((char*)UserTxBufferFS, "count pulses: %u\r\n", count_pulses);
-          // CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
-          count_pulses++;
-        }
-        count = 0;
-      }
+    current_response.count_pulses += get_signal_analysis();
+
+    if (conf.discharged_mode){
+      discharge_mode();
     }
-    current_response.count_pulses += count_pulses;
 
     if (current_chank == conf.current_chanks){
       isChaunksFull = TRUE;
       current_chank = 0;
-      count_pulses = 0;
+      laser_on();
     }
     HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc_value, DATA_SIZE);
   }
 }
-
 
 /* USER CODE END 0 */
 
