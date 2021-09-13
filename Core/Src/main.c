@@ -21,6 +21,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "i2c.h"
 #include "tim.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -31,32 +32,42 @@
 #include "usbd_cdc_if.h"
 #include "string.h"
 #include "stdio.h"
+#include <stdbool.h>
 
 extern uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
-#define DATA_SIZE  38554                     /*  sample_t secund = 1/96000000/4/(122 + 12.5)  DATA_SIZE = 0.2 secund /sample_t   */
+#define DATA_SIZE  38554                                               /*  sample_t secund = 1/96000000/4/(122 + 12.5)  DATA_SIZE = 0.2 secund /sample_t        */
 
-#define DEFAULT_CHAUNKS 10                    /*  total time 0.2 * 4 = 0.8   */
-#define DEFAULT_DISCARGED_CHAUNKS 1           /*                 */
-#define DEFAULT_REQUESTS_TIME_MS 300         
+#define DEFAULT_CHAUNKS 5                                              /*  total time 0.2 * 4 = 0.8                                                             */
+#define DEFAULT_DISCARGED_CHAUNKS 1                                    /*                                                                                       */
+#define DEFAULT_REQUESTS_TIME_MS 1000         
 #define DEFAULT_COUNT_DISCHARGED_PULSES 30
-
+#define DEFAULT_TRACING_CHANGS 10
+#define DEFAULT_POLLING_PERIPHERAL_TIME_MS 5000
+#define TIMEOUT 5                                                        /* Таймут в мс функции HAL_ADC_PollForConversion --------------------------> TODO     */
+#define COUNT_ADC_PERIPHERAL 2                                           /* Число каналов опроса переферии. Без учата канала главного фотодиода.               */
 
 volatile uint16_t adc_value[DATA_SIZE];
+volatile uint16_t adc_periphernal_value[COUNT_ADC_PERIPHERAL + 1];
+
+volatile uint16_t count_traking_chanks = 0;                            /* Глобальный счетчик периодов слежения. Относится к conf.count_tracking_chanks.         */  
 
 
-uint16_t count = 0;
-volatile uint16_t count_pulses = 0;
 
-volatile uint8_t current_chank = 0;
-volatile uint8_t isChaunksFull = 0;
+volatile uint8_t current_chank = 0;                                     /* Глобальный счетчик чанков.                                                           */    
+volatile uint8_t isChaunksFull = 0;                                     /* Флаг окончания опроса current_chank == conf.current_chanks.                          */
 
+/* Пременные настройки работы АЦП -------------------------------------------*/
+uint8_t is_adc_flag_polling_peripheral = 0;
+uint8_t number_peripheral_devices = COUNT_ADC_PERIPHERAL;                /* Число каналов опроса переферии. Без учата канала главного фотодиода.                */
+uint8_t is_start_polling_periphery = 0;                                  /* Флаг запроса на опрос переифефрии.                                                  */
+u_int8_t is_ready_flag_data_peripheral = 0;                              /* Флаг готовности опроса всекх переферийных устройств.                                */
 
-uint8_t tmp_buff[200];
+/* Пременные настройки периода событий----------------------------------------*/
+unsigned long t_requests;
+unsigned long t_polling_peripheral;
 
-uint8_t flag = 0;
-unsigned long T;
 
 
 /* USER CODE END Includes */
@@ -106,16 +117,32 @@ struct response current_response, ready_response = { 0, FALSE };
 
 struct configurations {
 
-  uint16_t response_period_ms;
-  uint8_t current_chanks;
-  uint8_t discharged_mode;
-  uint8_t count_discharged_chanks;
-  uint16_t count_discarge_pulses;
+  uint16_t response_period_ms;                                          /* 1 - Прериод отправки сообщей.                                                                 */
+  uint8_t current_chanks;                                               /* 2 - Число чанков, один чанк 0,2 с, то есть время опросо кратно 0,2 с.                         */
+  
+  uint8_t discharged_mode;                                              /* 3 - Флаг мода режима работы лазера.
+                                                                               TRUE - лазер будет включен  время `count_discharged_chanks/current_chanks * 0,2 с`
+                                                                               FALSE - лазер включен всегда                                                               */
+  uint8_t count_discharged_chanks;                                       /* 4 - Число чанков когда включен лазер, всегда   count_discharged_chanks <= current_chanks      */
+  uint16_t count_discarge_pulses;                                        /* 5 - Отладочный коэффициент числа импульсов в 1 чанке,
+                                                                                например, время сбора current_chanks = 4 чанка, count_discharged_chanks = 2, тогда общее
+                                                                                чило частиц для принятия решения будет равно count_discharged_chanks*count_discarge_pulses.
+                                                                              ------------------------------------------------------------------------------------->> TODO */
 
+  uint8_t tracking_mod;                                                  /* 6 - Флаг мода режима слежения.                                                                 */
+  uint16_t count_tracking_chanks;                                        /* 7 - Число периодов слежения. Время слежения равно count_tracking_chanks*current_chanks* 0,2 с. */  
+  uint16_t polling_period_of_peripheral;                                 /* 8 - Период опроса перефирии.                                                                   */
 }; 
-
-struct configurations __conf_deault, conf = { DEFAULT_REQUESTS_TIME_MS, DEFAULT_CHAUNKS, 
-                                              TRUE, DEFAULT_DISCARGED_CHAUNKS, DEFAULT_COUNT_DISCHARGED_PULSES };
+struct configurations __conf_deault, conf = {                             /* 1 */ 
+                            DEFAULT_REQUESTS_TIME_MS,                    /* 2 */
+                            DEFAULT_CHAUNKS,                             /* 3 */         
+                            TRUE,                                        /* 4 */     
+                            DEFAULT_DISCARGED_CHAUNKS,                   /* 5 */   
+                            DEFAULT_COUNT_DISCHARGED_PULSES,             /* 6 */   
+                            TRUE,                                        /* 7 */   
+                            DEFAULT_TRACING_CHANGS,                      /* 8 */
+                            DEFAULT_POLLING_PERIPHERAL_TIME_MS,          /* 9 */
+};                          
 
 
 void response_copy(){
@@ -127,29 +154,23 @@ void response_copy(){
 
 void send_message_virtual_com(int current){
   
-  for (int i = 0; i < APP_RX_DATA_SIZE; i++){
+  for (int i = 0; i < 500; i++){
     UserTxBufferFS[i] = 0;
   }
-
-  // sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", tmp);
-  printf("sasa"); 
   sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", current);
-
-  CDC_Transmit_FS(UserTxBufferFS, sizeof(tmp_buff)/sizeof tmp_buff[0]);
+  CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
   ready_response.flag_requests = TRUE;
 }
 
 
 void laser_off(){
   HAL_GPIO_WritePin(GPIOC, LED_Pin, GPIO_PIN_SET);
-
 }
 
 
 void laser_on(){
   HAL_GPIO_WritePin(GPIOC, LED_Pin, GPIO_PIN_RESET);
 }
-
 
 int get_signal_analysis(void){
   int count = 0;
@@ -169,15 +190,52 @@ int get_signal_analysis(void){
 
 
 void discharge_mode(){
+  /**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  */
+
   if (current_chank == conf.count_discharged_chanks){
+    count_traking_chanks++;
     int count = conf.count_discarge_pulses * conf.count_discharged_chanks;
     if (current_response.count_pulses >= count){
+
+      if (conf.tracking_mod){
+        count_traking_chanks = 0;
+      }
       laser_on();
     }
     else{
-      laser_off();
+      if (conf.tracking_mod){
+        if (conf.count_tracking_chanks < count_traking_chanks){
+          laser_off();  
+        }
+      }else{
+        laser_off();
+      }
     }
   }
+}
+
+void get_peripheral_data(){
+
+  is_adc_flag_polling_peripheral = TRUE;                                               
+  MX_ADC1_Init();
+
+  HAL_ADC_Start(&hadc1);
+  
+  for (uint8_t i = 0; i <= number_peripheral_devices;  i++){
+    if (HAL_ADC_PollForConversion(&hadc1, TIMEOUT) == HAL_OK)
+    {
+      adc_periphernal_value[i] = HAL_ADC_GetValue(&hadc1);
+    }
+  }
+
+  is_ready_flag_data_peripheral = TRUE;
+
+  HAL_ADC_Stop(&hadc1);
+  is_adc_flag_polling_peripheral = FALSE;
+  MX_ADC1_Init();
 }
 
 
@@ -194,7 +252,14 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
     if (current_chank == conf.current_chanks){
       isChaunksFull = TRUE;
       current_chank = 0;
+
+      if (is_start_polling_periphery){
+        get_peripheral_data();
+        is_start_polling_periphery = FALSE;
+      }
+
       laser_on();
+
     }
     HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc_value, DATA_SIZE);
   }
@@ -234,11 +299,13 @@ int main(void)
   MX_ADC1_Init();
   MX_USB_DEVICE_Init();
   MX_TIM2_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_ADC_Start_IT(&hadc1);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc_value, DATA_SIZE);
-  T = HAL_GetTick();
+  t_requests = HAL_GetTick();
+  t_polling_peripheral = HAL_GetTick();
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
@@ -266,8 +333,8 @@ int main(void)
     }
 
 
-    if (HAL_GetTick() - T >= conf.response_period_ms){
-      T = HAL_GetTick();
+    if (HAL_GetTick() - t_requests >= conf.response_period_ms){
+      t_requests = HAL_GetTick();
 
       int current = 0;
       if (ready_response.flag_requests){
@@ -278,7 +345,16 @@ int main(void)
       send_message_virtual_com(current);
     }
 
+    if (is_ready_flag_data_peripheral){
+      sprintf((char*)UserTxBufferFS, "DATA EXTERNAL: %u %u\r\n", adc_periphernal_value[1], adc_periphernal_value[2]);
+      CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
+      is_ready_flag_data_peripheral = FALSE;
+    }
 
+    if (HAL_GetTick() - t_polling_peripheral >= conf.polling_period_of_peripheral){
+      t_polling_peripheral = HAL_GetTick();
+      is_start_polling_periphery = TRUE;
+    }
 
     /* USER CODE END WHILE */
 
