@@ -133,15 +133,15 @@ struct configurations {
   uint16_t count_tracking_chanks;                                        /* 7 - Число периодов слежения. Время слежения равно count_tracking_chanks*current_chanks* 0,2 с. */  
   uint16_t polling_period_of_peripheral;                                 /* 8 - Период опроса перефирии.                                                                   */
 }; 
-struct configurations __conf_deault, conf = {                             /* 1 */ 
-                            DEFAULT_REQUESTS_TIME_MS,                    /* 2 */
-                            DEFAULT_CHAUNKS,                             /* 3 */         
-                            TRUE,                                        /* 4 */     
-                            DEFAULT_DISCARGED_CHAUNKS,                   /* 5 */   
-                            DEFAULT_COUNT_DISCHARGED_PULSES,             /* 6 */   
-                            TRUE,                                        /* 7 */   
-                            DEFAULT_TRACING_CHANGS,                      /* 8 */
-                            DEFAULT_POLLING_PERIPHERAL_TIME_MS,          /* 9 */
+struct configurations __conf_deault, conf = {                             
+                            DEFAULT_REQUESTS_TIME_MS,                    /* 1 */
+                            DEFAULT_CHAUNKS,                             /* 2 */         
+                            TRUE,                                        /* 3 */     
+                            DEFAULT_DISCARGED_CHAUNKS,                   /* 4 */   
+                            DEFAULT_COUNT_DISCHARGED_PULSES,             /* 5 */   
+                            TRUE,                                        /* 6 */   
+                            DEFAULT_TRACING_CHANGS,                      /* 7 */
+                            DEFAULT_POLLING_PERIPHERAL_TIME_MS,          /* 8 */
 };                          
 
 
