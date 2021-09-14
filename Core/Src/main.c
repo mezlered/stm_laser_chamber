@@ -35,7 +35,7 @@
 #include <stdbool.h>
 
 extern uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
-extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
+extern uint8_t UserTxBufferFS[APP_RX_DATA_SIZE];
 
 #define DATA_SIZE  38554                                               /*  sample_t secund = 1/96000000/4/(122 + 12.5)  DATA_SIZE = 0.2 secund /sample_t        */
 
@@ -161,7 +161,7 @@ void clear_buff(){
 
 void send_message_virtual_com(int current){
   clear_buff();
-  sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", current);
+  sprintf((char*)UserTxBufferFS, "info: count pulses detected: %u \r\n", current);
   CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
   ready_response.flag_requests = TRUE;
 }
@@ -358,7 +358,7 @@ int main(void)
       temper = temp*100;
 
       clear_buff();
-      sprintf((char*)UserTxBufferFS, "DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
+      sprintf((char*)UserTxBufferFS, "debug: DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
       is_ready_flag_data_peripheral = FALSE;
 
