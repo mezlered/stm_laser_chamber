@@ -45,8 +45,8 @@ extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 #define DEFAULT_COUNT_DISCHARGED_PULSES 30
 #define DEFAULT_TRACING_CHANGS 10
 #define DEFAULT_POLLING_PERIPHERAL_TIME_MS 5000
-#define TIMEOUT 5                                                        /* Таймут в мс функции HAL_ADC_PollForConversion --------------------------> TODO     */
-#define COUNT_ADC_PERIPHERAL 2                                           /* Число каналов опроса переферии. Без учата канала главного фотодиода.               */
+#define TIMEOUT 20                                                       /* Таймут в мс функции HAL_ADC_PollForConversion --------------------------> TODO     */
+#define COUNT_ADC_PERIPHERAL 3                                           /* Число каналов опроса переферии. Без учата канала главного фотодиода.               */
 
 volatile uint16_t adc_value[DATA_SIZE];
 volatile uint16_t adc_periphernal_value[COUNT_ADC_PERIPHERAL + 1];
@@ -152,11 +152,15 @@ void response_copy(){
 }
 
 
-void send_message_virtual_com(int current){
-  
+void clear_buff(){
   for (int i = 0; i < 500; i++){
     UserTxBufferFS[i] = 0;
   }
+}
+
+
+void send_message_virtual_com(int current){
+  clear_buff();
   sprintf((char*)UserTxBufferFS, "count pulses detected: %u pulses\r\n", current);
   CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
   ready_response.flag_requests = TRUE;
@@ -346,16 +350,25 @@ int main(void)
     }
 
     if (is_ready_flag_data_peripheral){
-      sprintf((char*)UserTxBufferFS, "DATA EXTERNAL: %u %u\r\n", adc_periphernal_value[1], adc_periphernal_value[2]);
+      float temp;
+      int temper;
+
+      temp = ((float)adc_periphernal_value[3]) / 4095 * 3300;
+      temp = ((temp - 760.0) / 2.5) + 25;
+      temper = temp*100;
+
+      clear_buff();
+      sprintf((char*)UserTxBufferFS, "DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
       is_ready_flag_data_peripheral = FALSE;
+
     }
 
     if (HAL_GetTick() - t_polling_peripheral >= conf.polling_period_of_peripheral){
       t_polling_peripheral = HAL_GetTick();
       is_start_polling_periphery = TRUE;
     }
-
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
