@@ -34,6 +34,13 @@
 #include "stdio.h"
 #include <stdbool.h>
 
+#define adress_i2c 0x2A
+uint8_t rx_buf[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+// rx_buf = {1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+
+
 extern uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 extern uint8_t UserTxBufferFS[APP_RX_DATA_SIZE];
 
@@ -306,14 +313,16 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_Delay(100); 
+  
   HAL_ADC_Start_IT(&hadc1);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc_value, DATA_SIZE);
-  t_requests = HAL_GetTick();
-  t_polling_peripheral = HAL_GetTick();
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
+  t_requests = HAL_GetTick();
+  t_polling_peripheral = HAL_GetTick();
 
   /* USER CODE END 2 */
 
@@ -347,6 +356,12 @@ int main(void)
         current = ready_response.count_pulses;
       }
       send_message_virtual_com(current);
+
+
+      const char wmsg[] = "We love STM32!dskl";
+
+      HAL_I2C_Master_Transmit(&hi2c1, adress_i2c, (uint8_t*)wmsg, sizeof(wmsg), 10000);
+
     }
 
     if (is_ready_flag_data_peripheral){
@@ -361,12 +376,28 @@ int main(void)
       sprintf((char*)UserTxBufferFS, "debug: DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
       is_ready_flag_data_peripheral = FALSE;
+      
+      HAL_Delay(100);
+      clear_buff();
+      sprintf((char*)UserTxBufferFS, "error: DATA ERROR TYPE: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
+      CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
+      
+      
+      HAL_Delay(100);
+      clear_buff();
+      sprintf((char*)UserTxBufferFS, "exception: EXETTIONS DATA: %u %u\r\n", adc_periphernal_value[1], adc_periphernal_value[2]);
+      CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
 
     }
 
     if (HAL_GetTick() - t_polling_peripheral >= conf.polling_period_of_peripheral){
       t_polling_peripheral = HAL_GetTick();
       is_start_polling_periphery = TRUE;
+
+
+      // HAL_I2C_Master_Transmit(&hi2c1, adress_i2c, &rx_buf, 1, 100);
+
+
     }
     
     /* USER CODE END WHILE */
