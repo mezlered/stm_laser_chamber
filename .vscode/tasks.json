@@ -1,0 +1,64 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build STM32",
+            "type": "shell",
+            "command": "D:/install/stm/make/make-bin/bin/make.exe -f Makefile",
+            "options": {
+                "cwd": "${workspaceRoot}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/C"
+                    ]
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "Flash Firmware debug",
+            "type": "shell",
+            "command": "D:/install/stm/st/xpack-openocd/bin/openocd.exe -f D:/install/stm/st/xpack-openocd/scripts/interface/stlink.cfg -f D:/install/stm/st/xpack-openocd/scripts/target/stm32f4x.cfg -c \"program D:/STM/aspir/laser_chamber/lser_chamber/build/debug/${workspaceFolderBasename}.bin verify reset exit 0x08000000",
+            "options": {
+                "cwd": "${workspaceRoot}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/C"
+                    ]
+                }
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Flash Firmware release",
+            "type": "shell",
+            "command": "D:/Inst/Portable/ST/xpack-openocd/bin/openocd.exe -f D:/Inst/Portable/ST/xpack-openocd/scripts/interface/stlink.cfg -f D:/Inst/Portable/ST/xpack-openocd/scripts/target/stm32f4x.cfg -c \"program D:/Project/2021/SPG/ST/${workspaceFolderBasename}/build/release/${workspaceFolderBasename}.bin verify reset exit 0x08000000",
+            "options": {
+                "cwd": "${workspaceRoot}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/C"
+                    ]
+                }
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

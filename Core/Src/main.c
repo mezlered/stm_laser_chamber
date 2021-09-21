@@ -34,6 +34,9 @@
 #include "stdio.h"
 #include <stdbool.h>
 
+#define SWDDEBUG
+
+
 #define adress_i2c 0x2A
 uint8_t rx_buf[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -103,6 +106,10 @@ typedef enum
 
 /* USER CODE BEGIN PV */
 
+#ifdef SWDDEBUG
+  extern void initialise_monitor_handles(void);
+#endif
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -168,7 +175,7 @@ void clear_buff(){
 
 void send_message_virtual_com(int current){
   clear_buff();
-  sprintf((char*)UserTxBufferFS, "info: count pulses detected: %u \r\n", current);
+  // sprintf((char*)UserTxBufferFS, "info: count pulses detected: %u \r\n", current);
   CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
   ready_response.flag_requests = TRUE;
 }
@@ -285,7 +292,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  initialise_monitor_handles();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -372,20 +379,24 @@ int main(void)
       temp = ((temp - 760.0) / 2.5) + 25;
       temper = temp*100;
 
+      printf("We love STM32!dskl\n");
+      printf("debug: DATA EXTERNAL: %u %u %f \n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
+
+
       clear_buff();
-      sprintf((char*)UserTxBufferFS, "debug: DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
+      // sprintf((char*)UserTxBufferFS, "debug: DATA EXTERNAL: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
       is_ready_flag_data_peripheral = FALSE;
       
       HAL_Delay(100);
       clear_buff();
-      sprintf((char*)UserTxBufferFS, "error: DATA ERROR TYPE: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
+      // sprintf((char*)UserTxBufferFS, "error: !!DATA ERROR TYPE: %u %u %u \r\n", adc_periphernal_value[1], adc_periphernal_value[2],  temper);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
       
       
       HAL_Delay(100);
       clear_buff();
-      sprintf((char*)UserTxBufferFS, "exception: EXETTIONS DATA: %u %u\r\n", adc_periphernal_value[1], adc_periphernal_value[2]);
+      // sprintf((char*)UserTxBufferFS, "exception: EXETTIONS DATA: %u %u\r\n", adc_periphernal_value[1], adc_periphernal_value[2]);
       CDC_Transmit_FS(UserTxBufferFS, sizeof(UserTxBufferFS)/sizeof UserTxBufferFS[0]);
 
     }

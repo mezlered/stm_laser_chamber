@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "main.h": "c",
+        "gpio.h": "c",
+        "usbd_cdc_if.h": "c",
+        "usb_device.h": "c",
+        "usbd_def.h": "c",
+        "cstdio": "c",
+        "stdbool.h": "c",
+        "stdio.h": "c"
+    }
+}

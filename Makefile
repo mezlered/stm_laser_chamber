@@ -20,6 +20,8 @@ TARGET = lser_chamber
 # building variables
 ######################################
 # debug build?
+
+SWDDEBUG = 1
 DEBUG = 1
 # optimization
 OPT = -Og
@@ -29,8 +31,12 @@ OPT = -Og
 # paths
 #######################################
 # Build path
-BUILD_DIR = build
+BUILD_DIR = build/release
 
+ifdef DEBUG
+	OPT = -Og
+	BUILD_DIR = build/debug
+endif
 ######################################
 # source
 ######################################
@@ -167,6 +173,10 @@ LDSCRIPT = STM32F411CEUx_FLASH.ld
 LIBS = -lc -lm -lnosys 
 LIBDIR = 
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+
+ifdef SWDDEBUG 
+LDFLAGS = $(MCU) -specs=nano.specs -specs=nosys.specs  -specs=rdimon.specs -lc -lrdimon -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -Wl,--print-memory-usage
+endif
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin

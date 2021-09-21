@@ -1,0 +1,39 @@
+{
+    "configurations": [
+        {
+            "name": "stm32_properties",
+            "includePath": [
+                "${workspaceRoot}/Core/Inc/",
+                "${workspaceRoot}/Core/Src/",
+                "${workspaceRoot}/Drivers/CMSIS/Include/",
+                "${workspaceRoot}/Drivers/CMSIS/Device/ST/STM32F4xx/Include/",
+                "${workspaceRoot}/Drivers/STM32F4xx_HAL_Driver/Inc/",
+                "${workspaceRoot}/Drivers/STM32F4xx_HAL_Driver/Src/",
+                "${workspaceRoot}/USB_DEVICE/App/",
+                "${workspaceRoot}/Middlewares/ST/STM32_USB_Device_Library/Core/Inc",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+            "path":[
+                "${workspaceRoot}/Core/Inc/",
+                "${workspaceRoot}/Core/Src/",
+                "${workspaceRoot}/Drivers/CMSIS/Include/",
+                "${workspaceRoot}/Drivers/CMSIS/Device/ST/STM32F4xx/Include/",
+                "${workspaceRoot}/Drivers/STM32F4xx_HAL_Driver/Inc/",
+                "${workspaceRoot}/Drivers/STM32F4xx_HAL_Driver/Src/",
+                ""   
+            ]
+        },
+            "defines": [
+                "STM32_HAL",
+                ""
+            ],
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "compilerPath": "D:/install/stm/arm-gcc/gcc-arm-none-eabi-9-2019-q4-major-win32/bin/arm-none-eabi-gcc.exe",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

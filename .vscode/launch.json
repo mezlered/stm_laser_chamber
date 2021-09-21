@@ -1,0 +1,21 @@
+{
+"configurations": [    
+    {
+        "cwd": "${workspaceRoot}",
+        "executable": "${workspaceRoot}/build/debug/${workspaceFolderBasename}.elf",
+        "name": "Debug STM32 OpenOCD",
+        "request": "launch",
+        "type": "cortex-debug",
+        "servertype": "openocd",
+        "interface": "swd",
+        "configFiles": [
+            "D:/install/stm/st/xpack-openocd/scripts/interface/stlink.cfg",
+            "D:/install/stm/st/xpack-openocd/scripts/target/stm32f4x.cfg",
+
+            // "D:\\Inst\\Portable\\ST\\xpack-openocd\\scripts\\interface\\stlink.cfg",
+            // "D:\\Inst\\Portable\\ST\\xpack-openocd\\scripts\\target\\stm32f4x.cfg"       
+        ],
+        "postLaunchCommands": ["monitor arm semihosting enable"]
+    }
+]
+}
